@@ -322,7 +322,8 @@ void MoveCenterTabController::modOffsetX( float value, bool notify )
         parent->AddOffsetToUniverseCenter(
             ( vr::TrackingUniverseOrigin ) m_trackingUniverse,
             offset,
-            m_adjustChaperone );
+            m_adjustChaperone,
+            false );
         m_offsetX += value;
         if ( notify )
         {
@@ -339,7 +340,8 @@ void MoveCenterTabController::modOffsetY( float value, bool notify )
             ( vr::TrackingUniverseOrigin ) m_trackingUniverse,
             1,
             value,
-            m_adjustChaperone );
+            m_adjustChaperone,
+            false );
         m_offsetY += value;
         if ( notify )
         {
@@ -358,7 +360,8 @@ void MoveCenterTabController::modOffsetZ( float value, bool notify )
         parent->AddOffsetToUniverseCenter(
             ( vr::TrackingUniverseOrigin ) m_trackingUniverse,
             offset,
-            m_adjustChaperone );
+            m_adjustChaperone,
+            false );
         m_offsetZ += value;
         if ( notify )
         {
@@ -381,7 +384,6 @@ void MoveCenterTabController::reset()
         offset,
         m_adjustChaperone,
         false );
-    vr::VRChaperoneSetup()->CommitWorkingCopy( vr::EChaperoneConfigFile_Live );
     m_offsetX = 0.0f;
     m_offsetY = 0.0f;
     m_offsetZ = 0.0f;
@@ -523,6 +525,7 @@ void MoveCenterTabController::eventLoopTick(
         {
             return;
         }
+
         float relativeControllerPosition[]
             = { pose->mDeviceToAbsoluteTracking.m[0][3],
                 pose->mDeviceToAbsoluteTracking.m[1][3],
@@ -578,7 +581,8 @@ void MoveCenterTabController::eventLoopTick(
             parent->AddOffsetToUniverseCenter(
                 ( vr::TrackingUniverseOrigin ) m_trackingUniverse,
                 diff,
-                m_adjustChaperone );
+                m_adjustChaperone,
+                false );
         }
         m_lastControllerPosition[0] = absoluteControllerPosition[0];
         m_lastControllerPosition[1] = absoluteControllerPosition[1];

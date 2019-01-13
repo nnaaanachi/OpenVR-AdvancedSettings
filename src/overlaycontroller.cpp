@@ -860,6 +860,11 @@ void OverlayController::AddOffsetToUniverseCenter(
         {
             vr::VRChaperoneSetup()->CommitWorkingCopy(
                 vr::EChaperoneConfigFile_Live );
+            vr::VRChaperoneSetup()->HideWorkingSetPreview();
+        }
+        else
+        {
+            vr::VRChaperoneSetup()->ShowWorkingSetPreview();
         }
     }
 }
@@ -913,6 +918,11 @@ void OverlayController::RotateUniverseCenter(
         {
             vr::VRChaperoneSetup()->CommitWorkingCopy(
                 vr::EChaperoneConfigFile_Live );
+            vr::VRChaperoneSetup()->HideWorkingSetPreview();
+        }
+        else
+        {
+            vr::VRChaperoneSetup()->ShowWorkingSetPreview();
         }
     }
 }
