@@ -21,6 +21,7 @@
 #include <easylogging++.h>
 #include "utils/Matrix.h"
 #include "openvr/overlay_utils.h"
+#include "keyboard_input/input_sender.h"
 
 // application namespace
 namespace advsettings
@@ -32,7 +33,25 @@ OverlayController::OverlayController( bool desktopMode,
                                       QQmlEngine& qmlEngine )
     : QObject(), m_desktopMode( desktopMode ), m_noSound( noSound ), m_actions()
 {
-    m_runtimePathUrl = QUrl::fromLocalFile( vr::VR_RuntimePath() );
+    // Arbitrarily chosen Max Length of Directory path, should be sufficient for
+    // Any set-up
+    const uint32_t maxLength = 16192;
+    uint32_t requiredLength;
+
+    char tempRuntimePath[maxLength];
+    bool pathIsGood
+        = vr::VR_GetRuntimePath( tempRuntimePath, maxLength, &requiredLength );
+
+    // Throw Error If over 16k characters in path string
+    if ( !pathIsGood )
+    {
+        LOG( ERROR ) << "Error Finding VR Runtime Path, Attempting Recovery: ";
+        uint32_t maxLengthRe = requiredLength;
+        LOG( INFO ) << "Open VR reporting Required path length of: "
+                    << maxLengthRe;
+    }
+
+    m_runtimePathUrl = QUrl::fromLocalFile( tempRuntimePath );
     LOG( INFO ) << "VR Runtime Path: " << m_runtimePathUrl.toLocalFile();
 
     QString activationSoundFile = m_runtimePathUrl.toLocalFile().append(
@@ -116,12 +135,8 @@ OverlayController::OverlayController( bool desktopMode,
     m_steamVRTabController.initStage1();
     m_chaperoneTabController.initStage1();
     m_moveCenterTabController.initStage1();
-    m_fixFloorTabController.initStage1();
     m_audioTabController.initStage1();
-    m_statisticsTabController.initStage1();
     m_settingsTabController.initStage1();
-    m_reviveTabController.initStage1(
-        m_settingsTabController.forceRevivePage() );
     m_utilitiesTabController.initStage1();
     m_videoTabController.initStage1();
 
@@ -237,16 +252,6 @@ OverlayController::OverlayController( bool desktopMode,
         qmlSingletonImportName,
         1,
         0,
-        "ReviveTabController",
-        []( QQmlEngine*, QJSEngine* ) {
-            QObject* obj = &( objectAddress->m_reviveTabController );
-            QQmlEngine::setObjectOwnership( obj, QQmlEngine::CppOwnership );
-            return obj;
-        } );
-    qmlRegisterSingletonType<SteamVRTabController>(
-        qmlSingletonImportName,
-        1,
-        0,
         "UtilitiesTabController",
         []( QQmlEngine*, QJSEngine* ) {
             QObject* obj = &( objectAddress->m_utilitiesTabController );
@@ -273,6 +278,53 @@ OverlayController::OverlayController( bool desktopMode,
             QQmlEngine::setObjectOwnership( obj, QQmlEngine::CppOwnership );
             return obj;
         } );
+
+    // Force keyboard shortcut settings to appear in config file.
+    constexpr auto settingsKeyboardName = "keyboardShortcuts";
+    appSettings()->beginGroup( settingsKeyboardName );
+
+    constexpr auto defaultDiscordMuteBindings = "^>m";
+    if ( appSettings()->value( "keyboardOne", "" ) == "" )
+    {
+        appSettings()->setValue( "keyboardOne", defaultDiscordMuteBindings );
+    }
+
+    if ( appSettings()->value( "keyboardTwo", "" ) == "" )
+    {
+        appSettings()->setValue( "keyboardTwo", defaultDiscordMuteBindings );
+    }
+
+    if ( appSettings()->value( "keyboardThree", "" ) == "" )
+    {
+        appSettings()->setValue( "keyboardThree", defaultDiscordMuteBindings );
+    }
+    appSettings()->endGroup();
+
+    // Keep the settings for vsyncDisabled here in main overlaycontroller
+    appSettings()->beginGroup( "applicationSettings" );
+    auto value = appSettings()->value( "vsyncDisabled", m_vsyncDisabled );
+    if ( value.isValid() && !value.isNull() )
+    {
+        m_vsyncDisabled = value.toBool();
+    }
+    value = appSettings()->value( "customTickRateMs", m_customTickRateMs );
+    if ( value.isValid() && !value.isNull() )
+    {
+        // keep sane tickrate (between 1~k_maxCustomTickRate)
+        if ( value.toInt() < 1 )
+        {
+            m_customTickRateMs = 1;
+        }
+        else if ( value.toInt() > k_maxCustomTickRate )
+        {
+            m_customTickRateMs = k_maxCustomTickRate;
+        }
+        else
+        {
+            m_customTickRateMs = value.toInt();
+        }
+    }
+    appSettings()->endGroup();
 }
 
 OverlayController::~OverlayController()
@@ -418,16 +470,14 @@ void OverlayController::SetWidget( QQuickItem* quickItem,
 
     m_pPumpEventsTimer->start();
 
-    m_steamVRTabController.initStage2( this, m_pWindow.get() );
-    m_chaperoneTabController.initStage2( this, m_pWindow.get() );
-    m_fixFloorTabController.initStage2( this, m_pWindow.get() );
-    m_audioTabController.initStage2( this, m_pWindow.get() );
-    m_statisticsTabController.initStage2( this, m_pWindow.get() );
-    m_settingsTabController.initStage2( this, m_pWindow.get() );
-    m_reviveTabController.initStage2( this, m_pWindow.get() );
-    m_utilitiesTabController.initStage2( this, m_pWindow.get() );
-    m_videoTabController.initStage2( this, m_pWindow.get() );
-    m_moveCenterTabController.initStage2( this, m_pWindow.get() );
+    m_steamVRTabController.initStage2( this );
+    m_chaperoneTabController.initStage2( this );
+    m_fixFloorTabController.initStage2( this );
+    m_audioTabController.initStage2();
+    m_statisticsTabController.initStage2( this );
+    m_settingsTabController.initStage2( this );
+    m_utilitiesTabController.initStage2( this );
+    m_moveCenterTabController.initStage2( this );
 }
 
 void OverlayController::OnRenderRequest()
@@ -539,6 +589,8 @@ void OverlayController::processMotionBindings()
     m_moveCenterTabController.resetOffsets( m_actions.resetOffsets() );
     m_moveCenterTabController.snapTurnLeft( m_actions.snapTurnLeft() );
     m_moveCenterTabController.snapTurnRight( m_actions.snapTurnRight() );
+    m_moveCenterTabController.smoothTurnLeft( m_actions.smoothTurnLeft() );
+    m_moveCenterTabController.smoothTurnRight( m_actions.smoothTurnRight() );
     m_moveCenterTabController.xAxisLockToggle( m_actions.xAxisLockToggle() );
     m_moveCenterTabController.yAxisLockToggle( m_actions.yAxisLockToggle() );
     m_moveCenterTabController.zAxisLockToggle( m_actions.zAxisLockToggle() );
@@ -558,10 +610,43 @@ void OverlayController::processMotionBindings()
         m_actions.swapSpaceDragToRightHandOverride() );
 }
 
+void OverlayController::processChaperoneBindings()
+{
+    if ( m_actions.chaperoneToggle() )
+    {
+        m_chaperoneTabController.setDisableChaperone(
+            !( m_chaperoneTabController.disableChaperone() ), true );
+    }
+    m_chaperoneTabController.setProxState( m_actions.proxState() );
+    m_chaperoneTabController.addLeftHapticClick(
+        m_actions.addLeftHapticClick() );
+    m_chaperoneTabController.addRightHapticClick(
+        m_actions.addRightHapticClick() );
+}
+
 void OverlayController::processPushToTalkBindings()
 {
     const auto pushToTalkCannotChange = !m_audioTabController.pttChangeValid();
     const auto pushToTalkEnabled = m_audioTabController.pttEnabled();
+
+    const auto proxSensorActivated = m_actions.proxState();
+    const auto useProxSensor = m_audioTabController.micProximitySensorCanMute();
+
+    if ( useProxSensor )
+    {
+        if ( !proxSensorActivated )
+        {
+            m_audioTabController.setMicMuted( true );
+            return;
+        }
+        // strictly speaking this is not the most elegant solution, but should
+        // work well enough.
+        else if ( !pushToTalkEnabled )
+        {
+            m_audioTabController.setMicMuted( false );
+        }
+    }
+
     if ( pushToTalkCannotChange || !pushToTalkEnabled )
     {
         return;
@@ -569,6 +654,7 @@ void OverlayController::processPushToTalkBindings()
 
     const auto pushToTalkButtonActivated = m_actions.pushToTalk();
     const auto pushToTalkCurrentlyActive = m_audioTabController.pttActive();
+
     if ( pushToTalkButtonActivated && !pushToTalkCurrentlyActive )
     {
         m_audioTabController.startPtt();
@@ -579,6 +665,40 @@ void OverlayController::processPushToTalkBindings()
     }
 }
 
+void OverlayController::processKeyboardBindings()
+{
+    constexpr auto settingsKeyboardName = "keyboardShortcuts";
+
+    if ( m_actions.keyboardOne() )
+    {
+        appSettings()->beginGroup( settingsKeyboardName );
+        const auto commands
+            = appSettings()->value( "keyboardOne" ).toString().toStdString();
+        appSettings()->endGroup();
+
+        sendStringAsInput( commands );
+    }
+
+    if ( m_actions.keyboardTwo() )
+    {
+        appSettings()->beginGroup( settingsKeyboardName );
+        const auto commands
+            = appSettings()->value( "keyboardTwo" ).toString().toStdString();
+        appSettings()->endGroup();
+
+        sendStringAsInput( commands );
+    }
+
+    if ( m_actions.keyboardThree() )
+    {
+        appSettings()->beginGroup( settingsKeyboardName );
+        const auto commands
+            = appSettings()->value( "keyboardThree" ).toString().toStdString();
+        appSettings()->endGroup();
+
+        sendStringAsInput( commands );
+    }
+}
 /*!
 Checks if an action has been activated and dispatches the related action if it
 has been.
@@ -590,37 +710,121 @@ void OverlayController::processInputBindings()
     processMotionBindings();
 
     processPushToTalkBindings();
+
+    processChaperoneBindings();
+
+    processKeyboardBindings();
+}
+
+bool OverlayController::vsyncDisabled() const
+{
+    return m_vsyncDisabled;
+}
+
+void OverlayController::setVsyncDisabled( bool value, bool notify )
+{
+    if ( m_vsyncDisabled == value )
+    {
+        return;
+    }
+    m_vsyncDisabled = value;
+    appSettings()->beginGroup( "applicationSettings" );
+    appSettings()->setValue( "vsyncDisabled", m_vsyncDisabled );
+    appSettings()->endGroup();
+    appSettings()->sync();
+    if ( notify )
+    {
+        emit vsyncDisabledChanged( m_vsyncDisabled );
+    }
+}
+
+int OverlayController::customTickRateMs() const
+{
+    return m_customTickRateMs;
+}
+
+void OverlayController::setCustomTickRateMs( int value, bool notify )
+{
+    if ( m_customTickRateMs == value )
+    {
+        return;
+    }
+    // keep m_customTickRateMs sane (between 1~k_maxCustomTickRate)
+    if ( value < 1 )
+    {
+        m_customTickRateMs = 1;
+    }
+    else if ( value > k_maxCustomTickRate )
+    {
+        m_customTickRateMs = k_maxCustomTickRate;
+    }
+    else
+    {
+        m_customTickRateMs = value;
+    }
+
+    appSettings()->beginGroup( "applicationSettings" );
+    appSettings()->setValue( "customTickRateMs", m_customTickRateMs );
+    appSettings()->endGroup();
+    appSettings()->sync();
+    if ( notify )
+    {
+        emit customTickRateMsChanged( m_customTickRateMs );
+    }
 }
 
 // vsync implementation:
-// (this function triggers every 1ms)
+// this function triggers every 1ms
+// this function should remain lightweight and only check if it's time to run
+// mainEventLoop() or not.
 void OverlayController::OnTimeoutPumpEvents()
 {
-    // get the current frame number from the VRSystem frame counter
-    vr::VRSystem()->GetTimeSinceLastVsync( nullptr, &m_currentFrame );
-
-    // Check if we are in the next frame yet
-    if ( m_currentFrame > m_lastFrame )
+    if ( m_vsyncDisabled )
     {
-        // If the frame has advanced since last check, it's time for our main
-        // event loop. (this function should trigger about every 11ms assuming
-        // 90fps compositor)
-        mainEventLoop();
+        // check if it's time for a custom tick rate tick
+        if ( m_customTickRateCounter > m_customTickRateMs )
+        {
+            mainEventLoop();
+            m_customTickRateCounter = 0;
+        }
+        else
+        {
+            m_customTickRateCounter++;
+        }
+    }
 
-        // wait for the next frame after executing our main event loop once.
-        m_lastFrame = m_currentFrame;
-        m_vsyncTooLateCounter = 0;
-    }
-    else if ( m_vsyncTooLateCounter >= k_nonVsyncTickRate )
+    // vsync is enabled
+    else
     {
-        mainEventLoop();
-        // m_lastFrame = m_currentFrame + 1 skips the next vsync frame in case
-        // it was just about to trigger, to prevent double updates faster than
-        // 11ms.
-        m_lastFrame = m_currentFrame + 1;
-        m_vsyncTooLateCounter = 0;
+        // get the current frame number from the VRSystem frame counter
+        vr::VRSystem()->GetTimeSinceLastVsync( nullptr, &m_currentFrame );
+
+        // Check if we are in the next frame yet
+        if ( m_currentFrame > m_lastFrame )
+        {
+            // If the frame has advanced since last check, it's time for our
+            // main event loop. (this function should trigger about every 11ms
+            // assuming 90fps compositor)
+            mainEventLoop();
+
+            // wait for the next frame after executing our main event loop once.
+            m_lastFrame = m_currentFrame;
+            m_vsyncTooLateCounter = 0;
+        }
+        else if ( m_vsyncTooLateCounter >= k_nonVsyncTickRate )
+        {
+            mainEventLoop();
+            // m_lastFrame = m_currentFrame + 1 skips the next vsync frame in
+            // case it was just about to trigger, to prevent double updates
+            // faster than 11ms.
+            m_lastFrame = m_currentFrame + 1;
+            m_vsyncTooLateCounter = 0;
+        }
+        else
+        {
+            m_vsyncTooLateCounter++;
+        }
     }
-    m_vsyncTooLateCounter++;
 }
 
 void OverlayController::mainEventLoop()
@@ -725,7 +929,8 @@ void OverlayController::mainEventLoop()
             m_moveCenterTabController.shutdown();
             // Un-mute mic before Exiting VR, as it is set at system level Not
             // Vr level.
-            m_audioTabController.setMicMuted( false, false );
+            // m_audioTabController.setMicMuted( false, false );
+            m_audioTabController.shutdown();
             m_chaperoneTabController.shutdown();
             Shutdown();
             QApplication::exit();
@@ -825,28 +1030,22 @@ void OverlayController::mainEventLoop()
         rightSpeed
             = std::sqrt( vel[0] * vel[0] + vel[1] * vel[1] + vel[2] * vel[2] );
     }
-    auto hmdSpeed = 0.0f;
-    if ( devicePoses[vr::k_unTrackedDeviceIndex_Hmd].bPoseIsValid
-         && devicePoses[vr::k_unTrackedDeviceIndex_Hmd].eTrackingResult
-                == vr::TrackingResult_Running_OK )
-    {
-        auto& vel = devicePoses[vr::k_unTrackedDeviceIndex_Hmd].vVelocity.v;
-        hmdSpeed
-            = std::sqrt( vel[0] * vel[0] + vel[1] * vel[1] + vel[2] * vel[2] );
-    }
+
     m_moveCenterTabController.eventLoopTick(
         vr::VRCompositor()->GetTrackingSpace(), devicePoses );
     m_utilitiesTabController.eventLoopTick();
-    m_fixFloorTabController.eventLoopTick( devicePoses );
     m_statisticsTabController.eventLoopTick(
         devicePoses, leftSpeed, rightSpeed );
-    m_steamVRTabController.eventLoopTick();
-    m_chaperoneTabController.eventLoopTick(
-        devicePoses, leftSpeed, rightSpeed, hmdSpeed );
-    m_settingsTabController.eventLoopTick();
-    m_reviveTabController.eventLoopTick();
+    m_chaperoneTabController.eventLoopTick( devicePoses );
     m_audioTabController.eventLoopTick();
-    // TODO do I need loop for vide?
+
+    if ( vr::VROverlay()->IsDashboardVisible() )
+    {
+        m_settingsTabController.dashboardLoopTick();
+        m_steamVRTabController.dashboardLoopTick();
+        m_fixFloorTabController.dashboardLoopTick( devicePoses );
+        m_videoTabController.dashboardLoopTick();
+    }
 
     if ( m_ulOverlayThumbnailHandle != vr::k_ulOverlayHandleInvalid )
     {

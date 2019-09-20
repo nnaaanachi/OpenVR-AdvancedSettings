@@ -35,7 +35,6 @@
 #include "tabcontrollers/AudioTabController.h"
 #include "tabcontrollers/StatisticsTabController.h"
 #include "tabcontrollers/SettingsTabController.h"
-#include "tabcontrollers/ReviveTabController.h"
 #include "tabcontrollers/UtilitiesTabController.h"
 #include "tabcontrollers/VideoTabController.h"
 
@@ -65,19 +64,23 @@ namespace advsettings
 constexpr int k_audioSettingsUpdateCounter = 89;
 constexpr int k_chaperoneSettingsUpdateCounter = 101;
 constexpr int k_moveCenterSettingsUpdateCounter = 83;
-constexpr int k_reviveSettingsUpdateCounter = 139;
 constexpr int k_settingsTabSettingsUpdateCounter = 157;
 constexpr int k_steamVrSettingsUpdateCounter = 97;
 constexpr int k_utilitiesSettingsUpdateCounter = 19;
 // k_nonVsyncTickRate determines number of ms we wait to force the next event
 // loop tick when vsync is too late due to dropped frames.
 constexpr int k_nonVsyncTickRate = 20;
+constexpr int k_maxCustomTickRate = 999;
 constexpr int k_hmdRotationCounterUpdateRate = 7;
 
 class OverlayController : public QObject
 {
     Q_OBJECT
     Q_PROPERTY( bool m_desktopMode READ isDesktopMode )
+    Q_PROPERTY( bool vsyncDisabled READ vsyncDisabled WRITE setVsyncDisabled
+                    NOTIFY vsyncDisabledChanged )
+    Q_PROPERTY( int customTickRateMs READ customTickRateMs WRITE
+                    setCustomTickRateMs NOTIFY customTickRateMsChanged )
 
 private:
     vr::VROverlayHandle_t m_ulOverlayHandle = vr::k_ulOverlayHandleInvalid;
@@ -99,6 +102,8 @@ private:
 
     bool m_desktopMode;
     bool m_noSound;
+    bool m_vsyncDisabled = false;
+    int m_customTickRateMs = 20;
 
     QUrl m_runtimePathUrl;
 
@@ -111,6 +116,7 @@ private:
     uint64_t m_currentFrame = 0;
     uint64_t m_lastFrame = 0;
     int m_vsyncTooLateCounter = 0;
+    int m_customTickRateCounter = 0;
 
     input::SteamIVRInput m_actions;
 
@@ -123,7 +129,6 @@ public: // I know it's an ugly hack to make them public to enable external
     AudioTabController m_audioTabController;
     StatisticsTabController m_statisticsTabController;
     SettingsTabController m_settingsTabController;
-    ReviveTabController m_reviveTabController;
     UtilitiesTabController m_utilitiesTabController;
     VideoTabController m_videoTabController;
     overlay::DesktopOverlay m_desktopOverlay;
@@ -134,6 +139,8 @@ private:
     void processMediaKeyBindings();
     void processMotionBindings();
     void processPushToTalkBindings();
+    void processChaperoneBindings();
+    void processKeyboardBindings();
 
 public:
     OverlayController( bool desktopMode, bool noSound, QQmlEngine& qmlEngine );
@@ -192,6 +199,9 @@ public:
                         vr::VREvent_t* pEvent );
     void mainEventLoop();
 
+    bool vsyncDisabled() const;
+    int customTickRateMs() const;
+
 public slots:
     void renderOverlay();
     void OnRenderRequest();
@@ -205,8 +215,13 @@ public slots:
     void setAlarm01SoundVolume( float vol );
     void cancelAlarm01Sound();
 
+    void setVsyncDisabled( bool value, bool notify = true );
+    void setCustomTickRateMs( int value, bool notify = true );
+
 signals:
     void keyBoardInputSignal( QString input, unsigned long userValue = 0 );
+    void vsyncDisabledChanged( bool value );
+    void customTickRateMsChanged( int value );
 
 private:
     static QSettings* _appSettings;

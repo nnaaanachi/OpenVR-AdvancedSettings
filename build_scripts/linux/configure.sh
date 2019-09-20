@@ -6,7 +6,7 @@ if [[ -z $QMAKE_SPEC ]]; then
 fi
 
 if [[ -z $USE_TIDY ]]; then
-    MAKE_COMMAND='make --jobs'
+    MAKE_COMMAND="make --jobs ${MAKE_JOBS}"
     CLANG_TIDY=
 else
     # Bear replaces the compile database, it does not update it.
@@ -20,4 +20,7 @@ fi
 
 if [[ -n $NO_X11 ]]; then
     QMAKE_EXTRAS='CONFIG+=noX11'
+fi
+if [[ -n $NO_DBUS ]]; then
+    QMAKE_EXTRAS='CONFIG+=noDBUS'
 fi

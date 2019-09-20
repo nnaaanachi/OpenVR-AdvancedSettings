@@ -16,6 +16,8 @@ DISTFILES += \
     src/res/qml/audio_page/* \
     src/res/qml/ChaperonePage.qml \
     src/res/qml/ChaperoneWarningsPage.qml \
+    src/res/qml/chaperone_page/* \
+    src/res/qml/chaperone_page/change_orientation/* \
     src/res/qml/FixFloorPage.qml \
     src/res/qml/PlayspacePage.qml \
     src/res/qml/motion_page/* \
@@ -24,11 +26,12 @@ DISTFILES += \
     src/res/qml/motion_page/snap_turn/* \
     src/res/qml/motion_page/space_drag/* \
     src/res/qml/motion_page/space_turn/* \
-    src/res/qml/RevivePage.qml \
     src/res/qml/RootPage.qml \
     src/res/qml/SettingsPage.qml \
     src/res/qml/StatisticsPage.qml \
-    src/res/qml/SteamVRPage.qml \
+    src/res/qml/steamvr_page/SteamVRPage.qml \
+	src/res/qml/steamvr_page/camera/* \
+	src/res/qml/steamvr_page/steamvrmisc/* \
     src/res/qml/utilities_page/* \
     src/res/qml/utilities_page/media_keys/* \
     src/res/qml/utilities_page/keyboard_utils/* \
@@ -39,8 +42,13 @@ DISTFILES += \
     src/res/qml/audio_page/proximity/* \
     src/res/qml/audio_page/push_to_talk/* \
     src/res/qml/audio_page/profiles/* \
-	src/res/qml/video_page/* \
-	src/res/qml/video_page/brightness/* \
+    src/res/qml/video_page/* \
+    src/res/qml/video_page/brightness/* \
+    src/res/qml/video_page/color/* \
+	src/res/qml/video_page/supersampling/* \
+	src/res/qml/video_page/miscvid/* \
+	src/res/qml/video_page/profiles/* \
+	src/res/qml/video_page/dialogboxes/* \
     src/res/qml/common/* \
     src/res/qml/desktop_overlay_page/* \
     src/res/qml/desktop_overlay_page/translation_left_right/SteamDesktopTranslationLeftRight.qml \

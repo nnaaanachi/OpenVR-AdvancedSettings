@@ -51,18 +51,13 @@ void AudioTabController::initStage1()
     reloadPttProfiles();
     reloadPttConfig();
     reloadAudioProfiles();
-    applyDefaultProfile();
     reloadAudioSettings();
 
     eventLoopTick();
 }
 
-void AudioTabController::initStage2( OverlayController* var_parent,
-                                     QQuickWindow* var_widget )
+void AudioTabController::initStage2()
 {
-    this->parent = var_parent;
-    this->widget = var_widget;
-
     std::string notifKey = std::string( application_strings::applicationKey )
                            + ".pptnotification";
 
@@ -171,39 +166,6 @@ void AudioTabController::eventLoopTick()
 
     if ( settingsUpdateCounter >= k_audioSettingsUpdateCounter )
     {
-        if ( m_micProximitySensorCanMute )
-        {
-            vr::VRControllerState_t controllerState;
-            if ( vr::VRSystem()->GetControllerState(
-                     vr::k_unTrackedDeviceIndex_Hmd,
-                     &controllerState,
-                     sizeof( vr::VRControllerState_t ) ) )
-            {
-                if ( ( controllerState.ulButtonPressed
-                       & vr::ButtonMaskFromId( vr::k_EButton_ProximitySensor ) )
-                     == 0 )
-                {
-                    if ( !m_micMuted )
-                    {
-                        setMicMuted( true );
-                    }
-                }
-                else
-                {
-                    if ( m_micMuted )
-                    {
-                        setMicMuted( false );
-                    }
-                }
-            }
-            else
-            {
-                if ( !parent->isDashboardVisible() )
-                {
-                    LOG( ERROR ) << "Could not read proximity sensor!";
-                }
-            }
-        }
         vr::EVRSettingsError vrSettingsError;
         char mirrorDeviceId[1024];
         vr::VRSettings()->GetString(
@@ -346,6 +308,7 @@ void AudioTabController::setMicVolume( float value, bool notify )
 void AudioTabController::setMicMuted( bool value, bool notify )
 {
     std::lock_guard<std::recursive_mutex> lock( eventLoopMutex );
+
     if ( value != m_micMuted )
     {
         m_micMuted = value;
@@ -467,9 +430,40 @@ QString AudioTabController::getPlaybackDeviceName( int index )
     }
 }
 
+std::string AudioTabController::getPlaybackDeviceID( int index )
+{
+    if ( index >= 0 && static_cast<size_t>( index ) < m_playbackDevices.size() )
+    {
+        return m_playbackDevices[static_cast<size_t>( index )].first;
+    }
+    else
+    {
+        LOG( ERROR ) << "Playback Device does not have a unique id";
+        return "<ERROR>";
+    }
+}
+
+std::string AudioTabController::getMirrorDeviceID( int index )
+{
+    return getPlaybackDeviceID( index );
+}
+
 int AudioTabController::getRecordingDeviceCount()
 {
     return static_cast<int>( m_recordingDevices.size() );
+}
+
+std::string AudioTabController::getRecordingDeviceID( int index )
+{
+    if ( index >= 0 && static_cast<size_t>( index ) < m_playbackDevices.size() )
+    {
+        return m_recordingDevices[static_cast<size_t>( index )].first;
+    }
+    else
+    {
+        LOG( ERROR ) << "Recording Device does not have a unique id";
+        return "<ERROR>";
+    }
 }
 
 QString AudioTabController::getRecordingDeviceName( int index )
@@ -484,6 +478,7 @@ QString AudioTabController::getRecordingDeviceName( int index )
         return "<ERROR>";
     }
 }
+
 int AudioTabController::playbackDeviceIndex() const
 {
     return m_playbackDeviceIndex;
@@ -507,28 +502,9 @@ void AudioTabController::setPlaybackDeviceIndex( int index, bool notify )
              && static_cast<size_t>( index ) < m_playbackDevices.size()
              && index != m_mirrorDeviceIndex )
         {
-            vr::EVRSettingsError vrSettingsError;
-            // Applys Audio Switch IN VR
-            vr::VRSettings()->SetString(
-                vr::k_pch_audio_Section,
-                vr::k_pch_audio_OnPlaybackDevice_String,
-                m_playbackDevices[static_cast<size_t>( index )].first.c_str(),
-                &vrSettingsError );
-            if ( vrSettingsError != vr::VRSettingsError_None )
-            {
-                LOG( WARNING )
-                    << "Could not write \""
-                    << vr::k_pch_audio_OnPlaybackDevice_String << "\" setting: "
-                    << vr::VRSettings()->GetSettingsErrorNameFromEnum(
-                           vrSettingsError );
-            }
-            else
-            {
-                vr::VRSettings()->Sync();
-                audioManager->setPlaybackDevice(
-                    m_playbackDevices[static_cast<size_t>( index )].first,
-                    notify );
-            }
+            // Code to only change the Device and not apply changes to SteamVR
+            audioManager->setPlaybackDevice(
+                m_playbackDevices[static_cast<size_t>( index )].first, notify );
         }
         else if ( notify )
         {
@@ -600,34 +576,31 @@ void AudioTabController::setMirrorDeviceIndex( int index, bool notify )
 
 void AudioTabController::setMicDeviceIndex( int index, bool notify )
 {
+    std::lock_guard<std::recursive_mutex> lock( eventLoopMutex );
     if ( index != m_recordingDeviceIndex )
     {
         if ( index >= 0
              && static_cast<size_t>( index ) < m_recordingDevices.size() )
         {
-            vr::EVRSettingsError vrSettingsError;
-            vr::VRSettings()->SetString(
-                vr::k_pch_audio_Section,
-                vr::k_pch_audio_OnRecordDevice_String,
-                m_recordingDevices[static_cast<size_t>( index )].first.c_str(),
-                &vrSettingsError );
-            if ( vrSettingsError != vr::VRSettingsError_None )
+            // un-mute mic before switching to ensure on exit all recording
+            // devices will be un-muted
+            bool tempProx = false;
+            if ( micProximitySensorCanMute() )
             {
-                LOG( WARNING )
-                    << "Could not write \""
-                    << vr::k_pch_audio_OnRecordDevice_String << "\" setting: "
-                    << vr::VRSettings()->GetSettingsErrorNameFromEnum(
-                           vrSettingsError );
+                setMicProximitySensorCanMute( false );
+                tempProx = true;
             }
-            else
+            setMicMuted( false, true );
+            // code to just change Mic
+            audioManager->setMicDevice(
+                m_recordingDevices[static_cast<size_t>( index )].first,
+                notify );
+            if ( tempProx )
             {
-                vr::VRSettings()->Sync();
-                audioManager->setMicDevice(
-                    m_recordingDevices[static_cast<size_t>( index )].first,
-                    notify );
+                setMicProximitySensorCanMute( true );
             }
         }
-        else if ( notify )
+        if ( notify )
         {
             emit micDeviceIndexChanged( m_recordingDeviceIndex );
         }
@@ -763,6 +736,11 @@ void AudioTabController::reloadAudioProfiles()
         entry.micVol = settings->value( "micVol", 1.0 ).toFloat();
         entry.defaultProfile
             = settings->value( "defaultProfile", false ).toBool();
+        entry.mirrorID = settings->value( "mirrorID" ).toString().toStdString();
+        entry.recordingID
+            = settings->value( "recordingID" ).toString().toStdString();
+        entry.playbackID
+            = settings->value( "playbackID" ).toString().toStdString();
     }
     settings->endArray();
     settings->endGroup();
@@ -802,6 +780,12 @@ void AudioTabController::saveAudioProfiles()
         settings->setValue( "micVol", p.micVol );
         settings->setValue( "mirrorVol", p.mirrorVol );
         settings->setValue( "defaultProfile", p.defaultProfile );
+
+        settings->setValue( "playbackID",
+                            QString::fromStdString( p.playbackID ) );
+        settings->setValue( "mirrorID", QString::fromStdString( p.mirrorID ) );
+        settings->setValue( "recordingID",
+                            QString::fromStdString( p.recordingID ) );
         i++;
     }
     settings->endArray();
@@ -852,8 +836,16 @@ void AudioTabController::addAudioProfile( QString name )
     profile->mirrorVol = m_mirrorVolume;
     profile->micVol = m_micVolume;
     profile->defaultProfile = m_isDefaultAudioProfile;
+
+    profile->playbackID = getPlaybackDeviceID( m_playbackDeviceIndex );
+    profile->mirrorID = getMirrorDeviceID( m_mirrorDeviceIndex );
+    profile->recordingID = getRecordingDeviceID( m_recordingDeviceIndex );
+
     if ( m_isDefaultAudioProfile )
     {
+        setDefaultMic( m_recordingDeviceIndex );
+        setDefaultPlayback( m_playbackDeviceIndex );
+
         removeOtherDefaultProfiles( name );
 
         setAudioProfileDefault( false );
@@ -877,15 +869,15 @@ other: none
 Description: Applies the required logic to activate the audio profile.
 
 */
-// TODO Remembers Mirror Volume when switching to main volume.
+
 void AudioTabController::applyAudioProfile( unsigned index )
 {
     std::lock_guard<std::recursive_mutex> lock( eventLoopMutex );
     if ( index < audioProfiles.size() )
     {
         auto& profile = audioProfiles[index];
-        int mInd = getMirrorIndex( profile.mirrorName );
-        int pInd = getPlaybackIndex( profile.playbackName );
+        int mInd = getMirrorIndex( profile.mirrorID );
+        int pInd = getPlaybackIndex( profile.playbackID );
 
         // Needed to keep remembering when swtiching from mirror/main etc.
         // TODO OPTI can possibly clean up logic to reduce overhead in future.
@@ -908,7 +900,7 @@ void AudioTabController::applyAudioProfile( unsigned index )
             setPlaybackDeviceIndex( pInd, true );
         }
 
-        setMicDeviceIndex( getRecordingIndex( profile.micName ), true );
+        setMicDeviceIndex( getRecordingIndex( profile.recordingID ), true );
         setMicMuted( profile.micMute, true );
         setMirrorMuted( profile.mirrorMute, true );
         setMicVolume( profile.micVol, true );
@@ -934,6 +926,46 @@ void AudioTabController::deleteAudioProfile( unsigned index )
     if ( index < audioProfiles.size() )
     {
         auto pos = audioProfiles.begin() + index;
+        // Remove PlayBack and Mic from Steam API Mirror Is handled @ shutdown
+        // This is necessary because Mirror Device does not appear to be handled
+        // via native windows api.
+        if ( audioProfiles.at( index ).defaultProfile )
+        {
+            vr::EVRSettingsError vrSettingsError;
+            vr::VRSettings()->RemoveKeyInSection(
+                vr::k_pch_audio_Section,
+                vr::k_pch_audio_OnPlaybackDevice_String,
+                &vrSettingsError );
+            if ( vrSettingsError != vr::VRSettingsError_None )
+            {
+                LOG( WARNING )
+                    << "Could not remove \""
+                    << vr::k_pch_audio_OnPlaybackDevice_String << "\" setting: "
+                    << vr::VRSettings()->GetSettingsErrorNameFromEnum(
+                           vrSettingsError );
+            }
+            else
+            {
+                vr::VRSettings()->Sync();
+            }
+
+            vr::VRSettings()->RemoveKeyInSection(
+                vr::k_pch_audio_Section,
+                vr::k_pch_audio_OnRecordDevice_String,
+                &vrSettingsError );
+            if ( vrSettingsError != vr::VRSettingsError_None )
+            {
+                LOG( WARNING )
+                    << "Could not remove \""
+                    << vr::k_pch_audio_OnRecordDevice_String << "\" setting: "
+                    << vr::VRSettings()->GetSettingsErrorNameFromEnum(
+                           vrSettingsError );
+            }
+            else
+            {
+                vr::VRSettings()->Sync();
+            }
+        }
         audioProfiles.erase( pos );
         saveAudioProfiles();
         OverlayController::appSettings()->sync();
@@ -957,7 +989,7 @@ QString AudioTabController::getAudioProfileName( unsigned index )
 
 /*
 Name: getPlaybackIndex,  getRecordingIndex, and getMirrorIndex
-input: string, of microphone/playback device name
+input: string, of microphone/playback device ID
 output: integer for use In: setMicDeviceIndex(int,bool),
 setMirrorDeviceIndex(int,bool) setPlayBackDeviceIndex(int,bool)
 description: Gets proper index value for selecting specific devices.
@@ -968,7 +1000,7 @@ int AudioTabController::getPlaybackIndex( std::string str )
     // increment it.
     for ( unsigned int i = 0; i < m_playbackDevices.size(); i++ )
     {
-        if ( str.compare( m_playbackDevices[i].second ) == 0 )
+        if ( str.compare( m_playbackDevices[i].first ) == 0 )
         {
             return static_cast<int>( i );
         }
@@ -982,7 +1014,7 @@ int AudioTabController::getRecordingIndex( std::string str )
     // increment it.
     for ( unsigned int i = 0; i < m_recordingDevices.size(); i++ )
     {
-        if ( str.compare( m_recordingDevices[i].second ) == 0 )
+        if ( str.compare( m_recordingDevices[i].first ) == 0 )
         {
             return static_cast<int>( i );
         }
@@ -996,12 +1028,118 @@ int AudioTabController::getMirrorIndex( std::string str )
     // increment it.
     for ( unsigned int i = 0; i < m_playbackDevices.size(); i++ )
     {
-        if ( str.compare( m_playbackDevices[i].second ) == 0 )
+        if ( str.compare( m_playbackDevices[i].first ) == 0 )
         {
             return static_cast<int>( i );
         }
     }
     return -1;
+}
+
+/*
+ Name: setDefaultPlayback/Mirror/Mic
+
+ input int index = index of m_playbackDevices to set
+
+ description: sets the SteamVR "on launch" audio options
+
+ NOTE: We Assume Index passed is good, and valid
+*/
+
+void AudioTabController::setDefaultPlayback( int index, bool notify )
+{
+    vr::EVRSettingsError vrSettingsError;
+    vr::VRSettings()->SetString(
+        vr::k_pch_audio_Section,
+        vr::k_pch_audio_OnPlaybackDevice_String,
+        m_playbackDevices[static_cast<size_t>( index )].first.c_str(),
+        &vrSettingsError );
+    if ( vrSettingsError != vr::VRSettingsError_None )
+    {
+        LOG( WARNING ) << "Could not write \""
+                       << vr::k_pch_audio_OnPlaybackDevice_String
+                       << "\" setting: "
+                       << vr::VRSettings()->GetSettingsErrorNameFromEnum(
+                              vrSettingsError );
+    }
+    else
+    {
+        vr::VRSettings()->Sync();
+        audioManager->setPlaybackDevice(
+            m_playbackDevices[static_cast<size_t>( index )].first, notify );
+    }
+}
+
+void AudioTabController::setDefaultMic( int index, bool notify )
+{
+    vr::EVRSettingsError vrSettingsError;
+    vr::VRSettings()->SetString(
+        vr::k_pch_audio_Section,
+        vr::k_pch_audio_OnRecordDevice_String,
+        m_recordingDevices[static_cast<size_t>( index )].first.c_str(),
+        &vrSettingsError );
+    if ( vrSettingsError != vr::VRSettingsError_None )
+    {
+        LOG( WARNING ) << "Could not write \""
+                       << vr::k_pch_audio_OnRecordDevice_String
+                       << "\" setting: "
+                       << vr::VRSettings()->GetSettingsErrorNameFromEnum(
+                              vrSettingsError );
+    }
+    else
+    {
+        vr::VRSettings()->Sync();
+        audioManager->setMicDevice(
+            m_recordingDevices[static_cast<size_t>( index )].first, notify );
+    }
+}
+
+void AudioTabController::setDefaultMirror( int index, bool notify )
+{
+    if ( index == -1 )
+    {
+        vr::EVRSettingsError vrSettingsError;
+        vr::VRSettings()->RemoveKeyInSection(
+            vr::k_pch_audio_Section,
+            vr::k_pch_audio_OnPlaybackMirrorDevice_String,
+            &vrSettingsError );
+        if ( vrSettingsError != vr::VRSettingsError_None )
+        {
+            LOG( WARNING ) << "Could not remove \""
+                           << vr::k_pch_audio_OnPlaybackMirrorDevice_String
+                           << "\" setting: "
+                           << vr::VRSettings()->GetSettingsErrorNameFromEnum(
+                                  vrSettingsError );
+        }
+        else
+        {
+            vr::VRSettings()->Sync();
+            audioManager->setMirrorDevice( "", notify );
+        }
+    }
+    else
+    {
+        vr::EVRSettingsError vrSettingsError;
+        vr::VRSettings()->SetString(
+            vr::k_pch_audio_Section,
+            vr::k_pch_audio_OnPlaybackMirrorDevice_String,
+            m_playbackDevices[static_cast<size_t>( index )].first.c_str(),
+            &vrSettingsError );
+        if ( vrSettingsError != vr::VRSettingsError_None )
+        {
+            LOG( WARNING ) << "Could not write \""
+                           << vr::k_pch_audio_OnPlaybackMirrorDevice_String
+                           << "\" setting: "
+                           << vr::VRSettings()->GetSettingsErrorNameFromEnum(
+                                  vrSettingsError );
+        }
+        else
+        {
+            vr::VRSettings()->Sync();
+            audioManager->setMirrorDevice(
+                m_playbackDevices[static_cast<size_t>( index )].first, notify );
+        }
+    }
 }
 
 /*
@@ -1056,5 +1194,40 @@ int AudioTabController::getDefaultAudioProfileIndex()
 
 /* ---------------------------*/
 /*----------------------------*/
+
+void AudioTabController::shutdown()
+{
+    setMicMuted( false, true );
+    std::string mID;
+    bool hasDefaultProfile = false;
+
+    // Un-mutes mic to prevent confusion on exit.
+
+    setMicMuted( false );
+
+    // handles Setting Mirror back to User based settings
+    // since we have to change the Mirror Device via valve api.
+    // possibly could change windows tab controller to allow us to do
+    // natively.
+    for ( unsigned i = 0; i < audioProfiles.size(); i++ )
+    {
+        auto& profile = audioProfiles[i];
+        if ( profile.defaultProfile )
+        {
+            mID = profile.mirrorID;
+            hasDefaultProfile = true;
+            break;
+        }
+    }
+    if ( hasDefaultProfile )
+    {
+        setMirrorDeviceIndex( getMirrorIndex( mID ) );
+    }
+    else
+    {
+        setMirrorDeviceIndex( -1 );
+    }
+    LOG( INFO ) << "Audio Tab Controller Has Shut Down";
+}
 
 } // namespace advsettings

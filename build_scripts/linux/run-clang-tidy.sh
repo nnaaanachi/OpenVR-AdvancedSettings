@@ -1,10 +1,15 @@
 set +e
-clang-tidy --version
+
+if [[ -z $CLANG_TIDY_EXECUTABLE ]]; then
+    CLANG_TIDY_EXECUTABLE='clang-tidy'
+fi
+
+$CLANG_TIDY_EXECUTABLE --version
 
 ERROR=0
 for file in $(find ../src -name "*.cpp"); do
     echo $file
-    clang-tidy $file
+    $CLANG_TIDY_EXECUTABLE $file
 
     EXIT=$?
     if [[ $EXIT != 0 ]]; then

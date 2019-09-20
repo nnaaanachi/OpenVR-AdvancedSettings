@@ -4,7 +4,8 @@ import QtQuick.Layouts 1.3
 import QtQuick.Dialogs 1.2
 import ovras.advsettings 1.0
 import "." // QTBUG-34418, singletons require explicit import to load qmldir file
-import "common"
+import "../common"
+import "change_orientation"
 
 MyStackViewPage {
     headerText: "Chaperone Settings"
@@ -247,13 +248,13 @@ MyStackViewPage {
 
             MySlider {
                 id: chaperoneVisibilitySlider
-                from: 0.5
+                from: 0.3
                 to: 1.0
                 stepSize: 0.01
                 value: 0.6
                 Layout.fillWidth: true
                 onPositionChanged: {
-                    var val = (this.position * 100)/2 + 50
+                    var val = (this.value * 100)
                     chaperoneVisibilityText.text = Math.round(val) + "%"
                 }
                 onValueChanged: {
@@ -272,7 +273,7 @@ MyStackViewPage {
 
             MyTextField {
                 id: chaperoneVisibilityText
-                text: "50.00"
+                text: "60.00"
                 keyBoardUID: 301
                 Layout.preferredWidth: 100
                 Layout.leftMargin: 10
@@ -280,11 +281,15 @@ MyStackViewPage {
                 function onInputEvent(input) {
                     var val = parseFloat(input)
                     if (!isNaN(val)) {
-                        if (val < 50.0) {
-                            val = 50.0
+                        if (val < 30.0) {
+                            val = 30.0
                         } else if (val > 100.0) {
                             val = 100.0
                         }
+                        if(val>100){
+                            val = 100.0
+                        }
+
                         var v = (val/100).toFixed(2)
                         if (v <= chaperoneVisibilitySlider.to) {
                             chaperoneVisibilitySlider.value = v
@@ -485,15 +490,8 @@ MyStackViewPage {
                 mainView.push(chaperoneWarningsPage)
             }
         }
+        ChangeOrientationGroupBox { }
 
-        MyPushButton {
-            id: chaperoneFlipOrientationButton
-            text: "Flip Orientation"
-            Layout.preferredWidth: 250
-            onClicked: {
-                ChaperoneTabController.flipOrientation()
-            }
-        }
 
         Item { Layout.fillHeight: true; Layout.fillWidth: true}
 
@@ -523,8 +521,8 @@ MyStackViewPage {
 
         Component.onCompleted: {
             chaperoneVisibilitySlider.value = ChaperoneTabController.boundsVisibility
-            if(chaperoneVisibilitySlider.value < 0.5){
-                chaperoneVisibilitySlider.value = 0.5
+            if(chaperoneVisibilitySlider.value < 0.3){
+                chaperoneVisibilitySlider.value = 0.3
             }
 
             var d = ChaperoneTabController.fadeDistance.toFixed(1)

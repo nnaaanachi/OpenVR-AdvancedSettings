@@ -5,7 +5,8 @@
 #include <QTime>
 #include <openvr.h>
 #include <memory>
-#include "keyboardinput/KeyboardInput.h"
+#include "src/keyboard_input/keyboard_input.h"
+#include "src/media_keys/media_keys.h"
 
 class QQuickWindow;
 // application namespace
@@ -28,7 +29,6 @@ class UtilitiesTabController : public QObject
 
 private:
     OverlayController* m_parent;
-    QQuickWindow* m_widget;
 
     unsigned settingsUpdateCounter = 0;
 
@@ -44,7 +44,7 @@ private:
 
 public:
     void initStage1();
-    void initStage2( OverlayController* var_parent, QQuickWindow* var_widget );
+    void initStage2( OverlayController* var_parent );
 
     void eventLoopTick();
 
@@ -65,6 +65,9 @@ public slots:
     void sendMediaPreviousSong();
     void sendMediaPausePlay();
     void sendMediaStopSong();
+    Q_INVOKABLE void sendKeyboardOne();
+    Q_INVOKABLE void sendKeyboardTwo();
+    Q_INVOKABLE void sendKeyboardThree();
 
     void setAlarmEnabled( bool enabled, bool notify = true );
     void setAlarmIsModal( bool modal, bool notify = true );

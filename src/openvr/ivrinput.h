@@ -43,14 +43,26 @@ namespace action_keys
     constexpr auto heightToggle = "/actions/motion/in/HeightToggle";
     constexpr auto snapTurnLeft = "/actions/motion/in/SnapTurnLeft";
     constexpr auto snapTurnRight = "/actions/motion/in/SnapTurnRight";
+    constexpr auto smoothTurnLeft = "/actions/motion/in/SmoothTurnLeft";
+    constexpr auto smoothTurnRight = "/actions/motion/in/SmoothTurnRight";
 
     constexpr auto xAxisLockToggle = "/actions/misc/in/XAxisLockToggle";
     constexpr auto yAxisLockToggle = "/actions/misc/in/YAxisLockToggle";
     constexpr auto zAxisLockToggle = "/actions/misc/in/ZAxisLockToggle";
     constexpr auto pushToTalk = "/actions/misc/in/PushToTalk";
 
+    constexpr auto keyboardOne = "/actions/misc/in/KeyboardOne";
+    constexpr auto keyboardTwo = "/actions/misc/in/KeyboardTwo";
+    constexpr auto keyboardThree = "/actions/misc/in/KeyboardThree";
+
     constexpr auto hapticsLeft = "/actions/haptic/out/HapticsLeft";
     constexpr auto hapticsRight = "/actions/haptic/out/HapticsRight";
+    constexpr auto proxSensor = "/actions/haptic/in/ProxSensor";
+    constexpr auto addLeftHapticClick = "/actions/haptic/in/AddLeftHapticClick";
+    constexpr auto addRightHapticClick
+        = "/actions/haptic/in/AddRightHapticClick";
+
+    constexpr auto chaperoneToggle = "/actions/misc/in/ChaperoneToggle";
 
 } // namespace action_keys
 
@@ -128,11 +140,21 @@ public:
     bool resetOffsets();
     bool snapTurnLeft();
     bool snapTurnRight();
+    bool smoothTurnLeft();
+    bool smoothTurnRight();
     bool xAxisLockToggle();
     bool yAxisLockToggle();
     bool zAxisLockToggle();
+    bool chaperoneToggle();
+    bool proxState();
+    bool addLeftHapticClick();
+    bool addRightHapticClick();
 
     bool pushToTalk();
+
+    bool keyboardOne();
+    bool keyboardTwo();
+    bool keyboardThree();
 
     vr::VRActionHandle_t leftHapticActionHandle();
     vr::VRActionHandle_t rightHapticActionHandle();
@@ -188,9 +210,19 @@ private:
     DigitalAction m_resetOffsets;
     DigitalAction m_snapTurnLeft;
     DigitalAction m_snapTurnRight;
+    DigitalAction m_smoothTurnLeft;
+    DigitalAction m_smoothTurnRight;
     DigitalAction m_xAxisLockToggle;
     DigitalAction m_yAxisLockToggle;
     DigitalAction m_zAxisLockToggle;
+
+    // Keyboard Shortcuts
+    DigitalAction m_keyboardOne;
+    DigitalAction m_keyboardTwo;
+    DigitalAction m_keyboardThree;
+
+    // Misc Bindings
+    DigitalAction m_chaperoneToggle;
 
     // Push To Talk
     DigitalAction m_pushToTalk;
@@ -198,6 +230,11 @@ private:
     // haptic bindings
     DigitalAction m_leftHaptic;
     DigitalAction m_rightHaptic;
+    DigitalAction m_addLeftHapticClick;
+    DigitalAction m_addRightHapticClick;
+
+    // prox Sensor
+    DigitalAction m_proxSensor;
 
     // input sources
     InputSource m_leftHand;

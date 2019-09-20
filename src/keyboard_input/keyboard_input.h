@@ -23,9 +23,5 @@ void sendKeyboardAltTab();
 void sendKeyboardAltEnter();
 void sendKeyboardCtrlC();
 void sendKeyboardCtrlV();
-void sendMediaNextSong();
-void sendMediaPreviousSong();
-void sendMediaPausePlay();
-void sendMediaStopSong();
 
 } // namespace keyboardinput

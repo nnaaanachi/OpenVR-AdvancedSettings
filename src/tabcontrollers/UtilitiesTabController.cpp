@@ -2,6 +2,7 @@
 #include <QQuickWindow>
 #include <QApplication>
 #include "../overlaycontroller.h"
+#include "../keyboard_input/input_sender.h"
 #include <chrono>
 #include <thread>
 
@@ -22,11 +23,9 @@ void UtilitiesTabController::initStage1()
     m_alarmTime = QTime( qAlarmHour.toInt(), qAlarmMinute.toInt() );
 }
 
-void UtilitiesTabController::initStage2( OverlayController* var_parent,
-                                         QQuickWindow* var_widget )
+void UtilitiesTabController::initStage2( OverlayController* var_parent )
 {
     this->m_parent = var_parent;
-    this->m_widget = var_widget;
 }
 
 void UtilitiesTabController::sendKeyboardInput( QString input )
@@ -79,6 +78,40 @@ void UtilitiesTabController::sendMediaPausePlay()
 void UtilitiesTabController::sendMediaStopSong()
 {
     keyboardinput::sendMediaStopSong();
+}
+
+void UtilitiesTabController::sendKeyboardOne()
+{
+    m_parent->appSettings()->beginGroup( "keyboardShortcuts" );
+    const auto commands = m_parent->appSettings()
+                              ->value( "keyboardOne" )
+                              .toString()
+                              .toStdString();
+    m_parent->appSettings()->endGroup();
+
+    sendStringAsInput( commands );
+}
+void UtilitiesTabController::sendKeyboardTwo()
+{
+    m_parent->appSettings()->beginGroup( "keyboardShortcuts" );
+    const auto commands = m_parent->appSettings()
+                              ->value( "keyboardTwo" )
+                              .toString()
+                              .toStdString();
+    m_parent->appSettings()->endGroup();
+
+    sendStringAsInput( commands );
+}
+void UtilitiesTabController::sendKeyboardThree()
+{
+    m_parent->appSettings()->beginGroup( "keyboardShortcuts" );
+    const auto commands = m_parent->appSettings()
+                              ->value( "keyboardThree" )
+                              .toString()
+                              .toStdString();
+    m_parent->appSettings()->endGroup();
+
+    sendStringAsInput( commands );
 }
 
 bool UtilitiesTabController::alarmEnabled() const

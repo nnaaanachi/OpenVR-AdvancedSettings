@@ -19,7 +19,6 @@ class FixFloorTabController : public QObject
 
 private:
     OverlayController* parent;
-    QQuickWindow* widget;
 
     float controllerUpOffsetCorrection
         = 0.062f; // Controller touchpad facing upwards
@@ -54,10 +53,10 @@ private:
     int getControllerType( vr::TrackedDeviceIndex_t controllerRole );
 
 public:
-    void initStage1();
-    void initStage2( OverlayController* parent, QQuickWindow* widget );
+    void initStage2( OverlayController* parent );
 
     void eventLoopTick( vr::TrackedDevicePose_t* devicePoses );
+    void dashboardLoopTick( vr::TrackedDevicePose_t* devicePoses );
 
     Q_INVOKABLE QString currentStatusMessage();
     Q_INVOKABLE float currentStatusMessageTimeout();

@@ -128,12 +128,21 @@ SteamIVRInput::SteamIVRInput()
       m_resetOffsets( action_keys::resetOffsets ),
       m_snapTurnLeft( action_keys::snapTurnLeft ),
       m_snapTurnRight( action_keys::snapTurnRight ),
+      m_smoothTurnLeft( action_keys::smoothTurnLeft ),
+      m_smoothTurnRight( action_keys::smoothTurnRight ),
       m_xAxisLockToggle( action_keys::xAxisLockToggle ),
       m_yAxisLockToggle( action_keys::yAxisLockToggle ),
       m_zAxisLockToggle( action_keys::zAxisLockToggle ),
+      m_keyboardOne( action_keys::keyboardOne ),
+      m_keyboardTwo( action_keys::keyboardTwo ),
+      m_keyboardThree( action_keys::keyboardThree ),
+      m_chaperoneToggle( action_keys::chaperoneToggle ),
       m_pushToTalk( action_keys::pushToTalk ),
       m_leftHaptic( action_keys::hapticsLeft ),
       m_rightHaptic( action_keys::hapticsRight ),
+      m_addLeftHapticClick( action_keys::addLeftHapticClick ),
+      m_addRightHapticClick( action_keys::addRightHapticClick ),
+      m_proxSensor( action_keys::proxSensor ),
       m_leftHand( input_keys::leftHand ), m_rightHand( input_keys::rightHand ),
       m_sets( { m_mainSet.activeActionSet(),
                 m_music.activeActionSet(),
@@ -270,6 +279,16 @@ bool SteamIVRInput::snapTurnRight()
     return isDigitalActionActivatedOnce( m_snapTurnRight );
 }
 
+bool SteamIVRInput::smoothTurnLeft()
+{
+    return isDigitalActionActivatedConstant( m_smoothTurnLeft );
+}
+
+bool SteamIVRInput::smoothTurnRight()
+{
+    return isDigitalActionActivatedConstant( m_smoothTurnRight );
+}
+
 bool SteamIVRInput::xAxisLockToggle()
 {
     return isDigitalActionActivatedOnce( m_xAxisLockToggle );
@@ -290,6 +309,39 @@ bool SteamIVRInput::pushToTalk()
     return isDigitalActionActivatedConstant( m_pushToTalk );
 }
 
+bool SteamIVRInput::chaperoneToggle()
+{
+    return isDigitalActionActivatedOnce( m_chaperoneToggle );
+}
+
+bool SteamIVRInput::proxState()
+{
+    return isDigitalActionActivatedConstant( m_proxSensor );
+}
+
+bool SteamIVRInput::addLeftHapticClick()
+{
+    return isDigitalActionActivatedConstant( m_addLeftHapticClick );
+}
+
+bool SteamIVRInput::addRightHapticClick()
+{
+    return isDigitalActionActivatedConstant( m_addRightHapticClick );
+}
+
+bool SteamIVRInput::keyboardOne()
+{
+    return isDigitalActionActivatedOnce( m_keyboardOne );
+}
+
+bool SteamIVRInput::keyboardTwo()
+{
+    return isDigitalActionActivatedOnce( m_keyboardTwo );
+}
+bool SteamIVRInput::keyboardThree()
+{
+    return isDigitalActionActivatedOnce( m_keyboardThree );
+}
 /*!
 Returns the action handle of the Left Haptic Action
 */

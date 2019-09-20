@@ -36,6 +36,8 @@ class MoveCenterTabController : public QObject
                     tempRotationChanged )
     Q_PROPERTY( int snapTurnAngle READ snapTurnAngle WRITE setSnapTurnAngle
                     NOTIFY snapTurnAngleChanged )
+    Q_PROPERTY( int smoothTurnRate READ smoothTurnRate WRITE setSmoothTurnRate
+                    NOTIFY smoothTurnRateChanged )
     Q_PROPERTY( bool adjustChaperone READ adjustChaperone WRITE
                     setAdjustChaperone NOTIFY adjustChaperoneChanged )
     Q_PROPERTY( bool moveShortcutRight READ moveShortcutRight WRITE
@@ -46,6 +48,10 @@ class MoveCenterTabController : public QObject
                     turnBindLeftChanged )
     Q_PROPERTY( bool turnBindRight READ turnBindRight WRITE setTurnBindRight
                     NOTIFY turnBindRightChanged )
+    Q_PROPERTY( bool dragBounds READ dragBounds WRITE setDragBounds NOTIFY
+                    dragBoundsChanged )
+    Q_PROPERTY( bool turnBounds READ turnBounds WRITE setTurnBounds NOTIFY
+                    turnBoundsChanged )
     Q_PROPERTY( unsigned dragComfortFactor READ dragComfortFactor WRITE
                     setDragComfortFactor NOTIFY dragComfortFactorChanged )
     Q_PROPERTY( unsigned turnComfortFactor READ turnComfortFactor WRITE
@@ -75,10 +81,12 @@ class MoveCenterTabController : public QObject
                     setAllowExternalEdits NOTIFY allowExternalEditsChanged )
     Q_PROPERTY( bool oldStyleMotion READ oldStyleMotion WRITE setOldStyleMotion
                     NOTIFY oldStyleMotionChanged )
+    Q_PROPERTY(
+        bool universeCenteredRotation READ universeCenteredRotation WRITE
+            setUniverseCenteredRotation NOTIFY universeCenteredRotationChanged )
 
 private:
     OverlayController* parent;
-    QQuickWindow* widget;
 
     int m_trackingUniverse = static_cast<int>( vr::TrackingUniverseStanding );
     float m_offsetX = 0.0f;
@@ -91,6 +99,7 @@ private:
     int m_oldRotation = 0;
     int m_tempRotation = 0;
     int m_snapTurnAngle = 4500;
+    int m_smoothTurnRate = 100;
     bool m_adjustChaperone = true;
     bool m_moveShortcutRightPressed = false;
     bool m_moveShortcutLeftPressed = false;
@@ -102,6 +111,8 @@ private:
     bool m_settingsRightHandTurnEnabled = false;
     unsigned m_dragComfortFactor = 0;
     unsigned m_turnComfortFactor = 0;
+    bool m_dragBounds = false;
+    bool m_turnBounds = false;
     bool m_heightToggle = false;
     float m_heightToggleOffset = -1.0f;
     float m_gravityFloor = 0.0f;
@@ -151,6 +162,7 @@ private:
     bool m_showLogMatricesButton = false;
     bool m_allowExternalEdits = false;
     bool m_oldStyleMotion = false;
+    bool m_universeCenteredRotation = false;
     unsigned settingsUpdateCounter = 0;
     int m_hmdRotationStatsUpdateCounter = 0;
     unsigned m_dragComfortFrameSkipCounter = 0;
@@ -179,7 +191,7 @@ private:
 
 public:
     void initStage1();
-    void initStage2( OverlayController* parent, QQuickWindow* widget );
+    void initStage2( OverlayController* parent );
 
     void eventLoopTick( vr::ETrackingUniverseOrigin universe,
                         vr::TrackedDevicePose_t* devicePoses );
@@ -190,11 +202,14 @@ public:
     int rotation() const;
     int tempRotation() const;
     int snapTurnAngle() const;
+    int smoothTurnRate() const;
     bool adjustChaperone() const;
     bool moveShortcutRight() const;
     bool moveShortcutLeft() const;
     bool turnBindRight() const;
     bool turnBindLeft() const;
+    bool dragBounds() const;
+    bool turnBounds() const;
     unsigned dragComfortFactor() const;
     unsigned turnComfortFactor() const;
     bool heightToggle() const;
@@ -209,6 +224,7 @@ public:
     bool showLogMatricesButton() const;
     bool allowExternalEdits() const;
     bool oldStyleMotion() const;
+    bool universeCenteredRotation() const;
     double getHmdYawTotal();
     void resetHmdYawTotal();
     void incomingSeatedReset();
@@ -230,6 +246,8 @@ public:
     void resetOffsets( bool resetOffsetsJustPressed );
     void snapTurnLeft( bool snapTurnLeftJustPressed );
     void snapTurnRight( bool snapTurnRightJustPressed );
+    void smoothTurnLeft( bool smoothTurnLeftActive );
+    void smoothTurnRight( bool smoothTurnRightActive );
     void xAxisLockToggle( bool xAxisLockToggleJustPressed );
     void yAxisLockToggle( bool yAxisLockToggleJustPressed );
     void zAxisLockToggle( bool zAxisLockToggleJustPressed );
@@ -245,6 +263,7 @@ public slots:
     void setRotation( int value, bool notify = true );
     void setTempRotation( int value, bool notify = true );
     void setSnapTurnAngle( int value, bool notify = true );
+    void setSmoothTurnRate( int value, bool notify = true );
 
     void setAdjustChaperone( bool value, bool notify = true );
     void setMoveShortcutRight( bool value, bool notify = true );
@@ -253,6 +272,8 @@ public slots:
     void setTurnBindLeft( bool value, bool notify = true );
     void setDragComfortFactor( unsigned value, bool notify = true );
     void setTurnComfortFactor( unsigned value, bool notify = true );
+    void setDragBounds( bool value, bool notify = true );
+    void setTurnBounds( bool value, bool notify = true );
     void setHeightToggle( bool value, bool notify = true );
     void setHeightToggleOffset( float value, bool notify = true );
     void setGravityStrength( float value, bool notify = true );
@@ -270,6 +291,7 @@ public slots:
     void setShowLogMatricesButton( bool value, bool notify = true );
     void setAllowExternalEdits( bool value, bool notify = true );
     void setOldStyleMotion( bool value, bool notify = true );
+    void setUniverseCenteredRotation( bool value, bool notify = true );
 
     void shutdown();
     void reset();
@@ -285,11 +307,14 @@ signals:
     void rotationChanged( int value );
     void tempRotationChanged( int value );
     void snapTurnAngleChanged( int value );
+    void smoothTurnRateChanged( int value );
     void adjustChaperoneChanged( bool value );
     void moveShortcutRightChanged( bool value );
     void moveShortcutLeftChanged( bool value );
     void turnBindRightChanged( bool value );
     void turnBindLeftChanged( bool value );
+    void dragBoundsChanged( bool value );
+    void turnBoundsChanged( bool value );
     void dragComfortFactorChanged( unsigned value );
     void turnComfortFactorChanged( unsigned value );
     void heightToggleChanged( bool value );
@@ -304,6 +329,7 @@ signals:
     void showLogMatricesButtonChanged( bool value );
     void allowExternalEditsChanged( bool value );
     void oldStyleMotionChanged( bool value );
+    void universeCenteredRotationChanged( bool value );
 };
 
 } // namespace advsettings

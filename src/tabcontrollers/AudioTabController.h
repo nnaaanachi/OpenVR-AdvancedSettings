@@ -18,6 +18,9 @@ struct AudioProfile
     std::string playbackName;
     std::string mirrorName;
     std::string micName;
+    std::string recordingID;
+    std::string playbackID;
+    std::string mirrorID;
     float mirrorVol = 0.0;
     float micVol = 0.0;
     bool micMute = false;
@@ -51,9 +54,6 @@ class AudioTabController : public PttController
                     setAudioProfileDefault NOTIFY audioProfileDefaultChanged )
 
 private:
-    OverlayController* parent;
-    QQuickWindow* widget;
-
     vr::VROverlayHandle_t m_ulNotificationOverlayHandle
         = vr::k_ulOverlayHandleInvalid;
 
@@ -103,11 +103,19 @@ private:
 
     void removeOtherDefaultProfiles( QString name );
 
+    std::string getPlaybackDeviceID( int index );
+    std::string getMirrorDeviceID( int index );
+    std::string getRecordingDeviceID( int index );
+
+    void setDefaultPlayback( int index, bool notify = true );
+    void setDefaultMirror( int index, bool notify = true );
+    void setDefaultMic( int index, bool notify = true );
+
     std::vector<AudioProfile> audioProfiles;
 
 public:
     void initStage1();
-    void initStage2( OverlayController* var_parent, QQuickWindow* var_widget );
+    void initStage2();
 
     void reloadAudioSettings();
     void saveAudioSettings();
@@ -147,6 +155,7 @@ public:
     void onNewPlaybackDevice();
     void onNewMirrorDevice();
     void onDeviceStateChanged();
+    void shutdown();
 
 public slots:
     void setMirrorVolume( float value, bool notify = true );

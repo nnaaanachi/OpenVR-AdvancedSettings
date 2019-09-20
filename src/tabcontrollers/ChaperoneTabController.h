@@ -6,6 +6,7 @@
 #include <chrono>
 #include <thread>
 #include <openvr.h>
+#include <cmath>
 
 class QQuickWindow;
 // application namespace
@@ -60,8 +61,6 @@ struct ChaperoneProfile
     float chaperoneAlarmSoundDistance = 0.0f;
     bool enableChaperoneShowDashboard = false;
     float chaperoneShowDashboardDistance = 0.0f;
-    bool enableChaperoneVelocityModifier = false;
-    float chaperoneVelocityModifier = 0.0f;
 };
 
 class ChaperoneTabController : public QObject
@@ -125,21 +124,11 @@ class ChaperoneTabController : public QObject
             WRITE setChaperoneShowDashboardDistance NOTIFY
                 chaperoneShowDashboardDistanceChanged )
 
-    Q_PROPERTY( bool chaperoneVelocityModifierEnabled READ
-                    isChaperoneVelocityModifierEnabled WRITE
-                        setChaperoneVelocityModifierEnabled NOTIFY
-                            chaperoneVelocityModifierEnabledChanged )
-    Q_PROPERTY( float chaperoneVelocityModifier READ chaperoneVelocityModifier
-                    WRITE setChaperoneVelocityModifier NOTIFY
-                        chaperoneVelocityModifierChanged )
-
 private:
     OverlayController* parent;
-    QQuickWindow* widget;
 
     float m_visibility = 0.6f;
     float m_fadeDistance = 0.7f;
-    float m_fadeDistanceModified = 0.7f;
     float m_height = 2.0f;
     bool m_centerMarker = false;
     bool m_playSpaceMarker = false;
@@ -167,14 +156,14 @@ private:
     float m_chaperoneShowDashboardDistance = 0.5f;
     bool m_chaperoneShowDashboardActive = false;
 
-    bool m_enableChaperoneVelocityModifier = false;
-    float m_chaperoneVelocityModifier = 0.0f;
-    float m_chaperoneVelocityModifierCurrent = 1.0f;
-
     unsigned settingsUpdateCounter = 0;
 
     bool m_isHapticGood = true;
     bool m_isHMDActive = false;
+    bool m_isProxActive = false;
+    bool m_HMDHasProx = false;
+    bool m_leftHapticClickActivated = false;
+    bool m_rightHapticClickActivated = false;
 
     int m_updateTicksChaperoneReload = 0;
 
@@ -189,12 +178,9 @@ public:
     ~ChaperoneTabController();
 
     void initStage1();
-    void initStage2( OverlayController* parent, QQuickWindow* widget );
+    void initStage2( OverlayController* parent );
 
-    void eventLoopTick( vr::TrackedDevicePose_t* devicePoses,
-                        float leftSpeed,
-                        float rightSpeed,
-                        float hmdSpeed );
+    void eventLoopTick( vr::TrackedDevicePose_t* devicePoses );
     void handleChaperoneWarnings( float distance );
 
     float boundsVisibility() const;
@@ -210,6 +196,8 @@ public:
     void setRightInputHandle( vr::VRInputValueHandle_t handle );
     void setLeftInputHandle( vr::VRInputValueHandle_t handle );
 
+    void setProxState( bool value );
+
     bool isChaperoneSwitchToBeginnerEnabled() const;
     float chaperoneSwitchToBeginnerDistance() const;
 
@@ -224,9 +212,6 @@ public:
     bool isChaperoneShowDashboardEnabled() const;
     float chaperoneShowDashboardDistance() const;
 
-    bool isChaperoneVelocityModifierEnabled() const;
-    float chaperoneVelocityModifier() const;
-
     void reloadChaperoneProfiles();
     void saveChaperoneProfiles();
 
@@ -234,6 +219,10 @@ public:
     Q_INVOKABLE QString getChaperoneProfileName( unsigned index );
 
     float getBoundsMaxY();
+
+    // actions
+    void addLeftHapticClick( bool leftHapticClickPressed );
+    void addRightHapticClick( bool rightHapticClickPressed );
 
 public slots:
     void setBoundsVisibility( float value, bool notify = true );
@@ -260,10 +249,7 @@ public slots:
     void setChaperoneShowDashboardEnabled( bool value, bool notify = true );
     void setChaperoneShowDashboardDistance( float value, bool notify = true );
 
-    void setChaperoneVelocityModifierEnabled( bool value, bool notify = true );
-    void setChaperoneVelocityModifier( float value, bool notify = true );
-
-    void flipOrientation();
+    void flipOrientation( double degrees = 180 );
     void reloadFromDisk();
 
     void addChaperoneProfile( QString name,
@@ -306,9 +292,6 @@ signals:
 
     void chaperoneShowDashboardEnabledChanged( bool value );
     void chaperoneShowDashboardDistanceChanged( float value );
-
-    void chaperoneVelocityModifierEnabledChanged( bool value );
-    void chaperoneVelocityModifierChanged( float value );
 
     void chaperoneProfilesUpdated();
 };
